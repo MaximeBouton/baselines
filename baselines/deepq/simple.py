@@ -253,7 +253,7 @@ def learn(env,
                 else:
                     obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size)
                     weights, batch_idxes = np.ones_like(rewards), None
-                td_errors = train(obses_t, actions, rewards, obses_tp1, dones, weights)
+                td_errors, weighted_error = train(obses_t, actions, rewards, obses_tp1, dones, weights)
                 if prioritized_replay:
                     new_priorities = np.abs(td_errors) + prioritized_replay_eps
                     replay_buffer.update_priorities(batch_idxes, new_priorities)
@@ -264,11 +264,16 @@ def learn(env,
 
             mean_100ep_reward = round(np.mean(episode_rewards[-101:-1]), 1)
             num_episodes = len(episode_rewards)
-            if done and print_freq is not None and len(episode_rewards) % print_freq == 0:
+            # if done and print_freq is not None and len(episode_rewards) % print_freq == 0:
+            if t > learning_starts and t % print_freq == 0:
+                for key, value in env.to_log.items():
+                    logger.record_tabular(key, value)
                 logger.record_tabular("steps", t)
                 logger.record_tabular("episodes", num_episodes)
                 logger.record_tabular("mean 100 episode reward", mean_100ep_reward)
                 logger.record_tabular("% time spent exploring", int(100 * exploration.value(t)))
+                if t > learning_starts:
+                    logger.record_tabular("Loss", weighted_error)
                 logger.dump_tabular()
 
             if (checkpoint_freq is not None and t > learning_starts and
