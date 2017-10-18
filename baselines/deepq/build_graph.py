@@ -111,8 +111,15 @@ def default_param_noise_filter(var):
     # to re-consider which layers to perturb and which to keep untouched.
     return False
 
+def baseline_policy(obs):
+    """
+    returns the value of the input observation and
+    can take a numpy array in input of size (batch_size, obs_shape...)
+    """
+    return np.ones(obs.shape)
 
-def build_act(make_obs_ph, q_func, num_actions, scope="deepq", reuse=None):
+
+def build_act(make_obs_ph, q_func, num_actions, baseline_policy, scope="deepq", reuse=None):
     """Creates the act function:
 
     Parameters
@@ -149,7 +156,10 @@ def build_act(make_obs_ph, q_func, num_actions, scope="deepq", reuse=None):
 
         eps = tf.get_variable("eps", (), initializer=tf.constant_initializer(0))
 
-        q_values = q_func(observations_ph.get(), num_actions, scope="q_func")
+        q_corr = q_func(observations_ph.get(), num_actions, scope="q_func")
+        # Add baseline_policy here
+        q_baseline = tf.py_func(baseline_policy, [observations_ph.get()])
+        
         deterministic_actions = tf.argmax(q_values, axis=1)
 
         batch_size = tf.shape(observations_ph.get())[0]
