@@ -12,6 +12,8 @@ from baselines.common.schedules import LinearSchedule
 from baselines import deepq
 from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 
+import copy
+import pdb
 
 class ActWrapper(object):
     def __init__(self, act, act_params):
@@ -95,6 +97,9 @@ def learn(env,
           prioritized_replay_eps=1e-6,
           num_cpu=16,
           param_noise=False,
+          baseline_policy = None,
+          path = None,
+          scope="deepq",
           callback=None):
     """Train a deepq model.
 
@@ -171,6 +176,7 @@ def learn(env,
     def make_obs_ph(name):
         return U.BatchInput(env.observation_space.shape, name=name)
 
+    #build graph
     act, train, update_target, debug = deepq.build_train(
         make_obs_ph=make_obs_ph,
         q_func=q_func,
@@ -178,6 +184,7 @@ def learn(env,
         optimizer=tf.train.AdamOptimizer(learning_rate=lr),
         gamma=gamma,
         grad_norm_clipping=10,
+        scope=scope,
         param_noise=param_noise
     )
     act_params = {
@@ -185,6 +192,27 @@ def learn(env,
         'q_func': q_func,
         'num_actions': env.action_space.n,
     }
+
+    # print all the variables in the graph
+    for var in tf.global_variables():
+        print(var.name)
+
+    # # restore parameters
+    # # print weights before
+    # a = tf.get_default_graph().get_tensor_by_name("multi/q_func/baseline/state_value/fully_connected/weights:0")
+    # target_a = tf.get_default_graph().get_tensor_by_name("multi/target_q_func/baseline/state_value/fully_connected/weights:0")
+    # # pdb.set_trace()
+    # baseline_policy.restore_params(scope)
+    # # print("Weights before restoring :")
+    # # print("first FC {}".format(a.eval(sess)))
+    # # print("Target {}".format(a.eval(sess)))
+    # # after restoring
+    # start_weights = a.eval()
+    # print("Weights after restoring :")
+    # print("first FC {}".format(start_weights))
+    # print("Target {}".format(start_weights))
+
+    # pdb.set_trace()
 
     # Create the replay buffer
     if prioritized_replay:
@@ -203,7 +231,22 @@ def learn(env,
                                  final_p=exploration_final_eps)
 
     # Initialize the parameters and copy them to the target network.
+    # pdb.set_trace()
     U.initialize()
+    # restore parameters
+    # print weights before
+    a = tf.get_default_graph().get_tensor_by_name("multi/q_func/baseline/state_value/fully_connected/weights:0")
+    target_a = tf.get_default_graph().get_tensor_by_name("multi/target_q_func/baseline/state_value/fully_connected/weights:0")
+    # pdb.set_trace()
+    baseline_policy.restore_params(scope)
+    # print("Weights before restoring :")
+    # print("first FC {}".format(a.eval(sess)))
+    # print("Target {}".format(a.eval(sess)))
+    # after restoring
+    start_weights = copy.deepcopy(a.eval())
+    print("Weights after restoring :")
+    print("first FC {}".format(start_weights))
+    print("Target {}".format(start_weights))
     update_target()
 
     episode_rewards = [0.0]
@@ -257,10 +300,15 @@ def learn(env,
                 if prioritized_replay:
                     new_priorities = np.abs(td_errors) + prioritized_replay_eps
                     replay_buffer.update_priorities(batch_idxes, new_priorities)
+                # pdb.set_trace()
+                # sanity check that the parameter from the baseline policy are constant
+                assert (a.eval() == start_weights).all()
 
             if t > learning_starts and t % target_network_update_freq == 0:
                 # Update target network periodically.
                 update_target()
+
+
 
             mean_100ep_reward = round(np.mean(episode_rewards[-101:-1]), 1)
             num_episodes = len(episode_rewards)

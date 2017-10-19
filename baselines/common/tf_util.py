@@ -268,9 +268,12 @@ def set_value(v, val):
 # ================================================================
 
 
-def load_state(fname):
-    saver = tf.train.Saver()
-    saver.restore(get_session(), fname)
+def load_state(path, restore_dict=None):
+    if restore_dict:
+        saver = tf.train.Saver(restore_dict)
+    else:
+        saver = tf.train.Saver()
+    saver.restore(get_session(), path)
 
 
 def save_state(fname):

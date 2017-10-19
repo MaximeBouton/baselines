@@ -1,6 +1,6 @@
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
-
+import pdb
 
 def _mlp(hiddens, inpt, num_actions, scope, reuse=False, layer_norm=False):
     with tf.variable_scope(scope, reuse=reuse):
@@ -30,7 +30,8 @@ def mlp(hiddens=[], layer_norm=False):
     return lambda *args, **kwargs: _mlp(hiddens, layer_norm=layer_norm, *args, **kwargs)
 
 
-def _cnn_to_mlp(convs, hiddens, dueling, inpt, num_actions, scope, reuse=False, layer_norm=False):
+def _cnn_to_mlp(convs, hiddens, baseline_policy, dueling, inpt, num_actions, scope, reuse=False, layer_norm=False):
+    tf_baseline = True
     with tf.variable_scope(scope, reuse=reuse):
         out = inpt
         with tf.variable_scope("convnet"):
@@ -64,10 +65,17 @@ def _cnn_to_mlp(convs, hiddens, dueling, inpt, num_actions, scope, reuse=False, 
             q_out = state_score + action_scores_centered
         else:
             q_out = action_scores
+        if baseline_policy and tf_baseline: # baseline is a tensor
+            baseline_scores = baseline_policy.build_graph(inpt)
+            q_out = q_out + baseline_scores
+        elif baseline_policy:
+            baseline_scores = tf.py_func(baseline_policy, [inpt, num_actions], tf.float32, name="baseline")
+            baseline_scores.set_shape(q_out.shape)
+            q_out = q_out + baseline_scores
         return q_out
 
 
-def cnn_to_mlp(convs, hiddens, dueling=False, layer_norm=False):
+def cnn_to_mlp(convs, hiddens, baseline_policy=None, dueling=False, layer_norm=False):
     """This model takes as input an observation and returns values of all actions.
 
     Parameters
@@ -87,5 +95,4 @@ def cnn_to_mlp(convs, hiddens, dueling=False, layer_norm=False):
         q_function for DQN algorithm.
     """
 
-    return lambda *args, **kwargs: _cnn_to_mlp(convs, hiddens, dueling, layer_norm=layer_norm, *args, **kwargs)
-
+    return lambda *args, **kwargs: _cnn_to_mlp(convs, hiddens, baseline_policy, dueling, layer_norm=layer_norm, *args, **kwargs)

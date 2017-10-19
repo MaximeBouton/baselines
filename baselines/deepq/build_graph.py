@@ -95,7 +95,7 @@ The functions in this file can are used to create the following functions:
 """
 import tensorflow as tf
 import baselines.common.tf_util as U
-
+import pdb
 
 def default_param_noise_filter(var):
     if var not in tf.trainable_variables():
@@ -111,15 +111,7 @@ def default_param_noise_filter(var):
     # to re-consider which layers to perturb and which to keep untouched.
     return False
 
-def baseline_policy(obs):
-    """
-    returns the value of the input observation and
-    can take a numpy array in input of size (batch_size, obs_shape...)
-    """
-    return np.ones(obs.shape)
-
-
-def build_act(make_obs_ph, q_func, num_actions, baseline_policy, scope="deepq", reuse=None):
+def build_act(make_obs_ph, q_func, num_actions, scope="deepq", reuse=None):
     """Creates the act function:
 
     Parameters
@@ -156,10 +148,8 @@ def build_act(make_obs_ph, q_func, num_actions, baseline_policy, scope="deepq", 
 
         eps = tf.get_variable("eps", (), initializer=tf.constant_initializer(0))
 
-        q_corr = q_func(observations_ph.get(), num_actions, scope="q_func")
-        # Add baseline_policy here
-        q_baseline = tf.py_func(baseline_policy, [observations_ph.get()])
-        
+        q_values = q_func(observations_ph.get(), num_actions, scope="q_func")
+
         deterministic_actions = tf.argmax(q_values, axis=1)
 
         batch_size = tf.shape(observations_ph.get())[0]
@@ -361,11 +351,13 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
 
         # q network evaluation
         q_t = q_func(obs_t_input.get(), num_actions, scope="q_func", reuse=True)  # reuse parameters from act
-        q_func_vars = U.scope_vars(U.absolute_scope_name("q_func"))
-
+        q_func_vars = U.scope_vars(U.absolute_scope_name("q_func/action_value")) + \
+                      U.scope_vars(U.absolute_scope_name("q_func/state_value"))
+    
         # target q network evalution
         q_tp1 = q_func(obs_tp1_input.get(), num_actions, scope="target_q_func")
-        target_q_func_vars = U.scope_vars(U.absolute_scope_name("target_q_func"))
+        target_q_func_vars = U.scope_vars(U.absolute_scope_name("target_q_func/action_value")) + \
+                             U.scope_vars(U.absolute_scope_name("target_q_func/state_value"))
 
         # q scores for actions which we know were selected in the given state.
         q_t_selected = tf.reduce_sum(q_t * tf.one_hot(act_t_ph, num_actions), 1)
