@@ -235,18 +235,20 @@ def learn(env,
     U.initialize()
     # restore parameters
     # print weights before
-    a = tf.get_default_graph().get_tensor_by_name("multi/q_func/baseline/state_value/fully_connected/weights:0")
-    target_a = tf.get_default_graph().get_tensor_by_name("multi/target_q_func/baseline/state_value/fully_connected/weights:0")
-    # pdb.set_trace()
-    baseline_policy.restore_params(scope)
-    # print("Weights before restoring :")
-    # print("first FC {}".format(a.eval(sess)))
-    # print("Target {}".format(a.eval(sess)))
-    # after restoring
-    start_weights = copy.deepcopy(a.eval())
-    print("Weights after restoring :")
-    print("first FC {}".format(start_weights))
-    print("Target {}".format(start_weights))
+    if baseline_policy:
+        a = tf.get_default_graph().get_tensor_by_name("multi/q_func/baseline/state_value/fully_connected/weights:0")
+        target_a = tf.get_default_graph().get_tensor_by_name("multi/target_q_func/baseline/state_value/fully_connected/weights:0")
+        # pdb.set_trace()
+        baseline_policy.restore_params(scope)
+        # print("Weights before restoring :")
+        # print("first FC {}".format(a.eval(sess)))
+        # print("Target {}".format(a.eval(sess)))
+        # after restoring
+        start_weights = copy.deepcopy(a.eval())
+        print("Weights after restoring :")
+        print("first FC {}".format(start_weights))
+        print("Target {}".format(start_weights))
+
     update_target()
 
     episode_rewards = [0.0]
@@ -301,8 +303,9 @@ def learn(env,
                     new_priorities = np.abs(td_errors) + prioritized_replay_eps
                     replay_buffer.update_priorities(batch_idxes, new_priorities)
                 # pdb.set_trace()
-                # sanity check that the parameter from the baseline policy are constant
-                assert (a.eval() == start_weights).all()
+                if baseline_policy:
+                    # sanity check that the parameter from the baseline policy are constant
+                    assert (a.eval() == start_weights).all()
 
             if t > learning_starts and t % target_network_update_freq == 0:
                 # Update target network periodically.
