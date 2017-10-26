@@ -313,7 +313,7 @@ def learn(env,
 
 
 
-            mean_100ep_reward = round(np.mean(episode_rewards[-101:-1]), 1)
+            mean_100ep_reward = round(np.mean(episode_rewards[-101:-1]), 4)
             num_episodes = len(episode_rewards)
             # if done and print_freq is not None and len(episode_rewards) % print_freq == 0:
             if t > learning_starts and t % print_freq == 0:
