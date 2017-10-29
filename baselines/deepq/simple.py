@@ -100,6 +100,8 @@ def learn(env,
           baseline_policy = None,
           path = None,
           scope="deepq",
+          evaluate = None,
+          eval_freq = 1000,
           callback=None):
     """Train a deepq model.
 
@@ -253,6 +255,7 @@ def learn(env,
 
     episode_rewards = [0.0]
     saved_mean_reward = None
+    eval_score = 0.0
     obs = env.reset()
     reset = True
     with tempfile.TemporaryDirectory() as td:
@@ -312,6 +315,8 @@ def learn(env,
                 update_target()
 
 
+            if evaluate and len(episode_rewards) % eval_freq == 0:
+                eval_score = evaluate(env, act)
 
             mean_100ep_reward = round(np.mean(episode_rewards[-101:-1]), 4)
             num_episodes = len(episode_rewards)
@@ -329,13 +334,22 @@ def learn(env,
 
             if (checkpoint_freq is not None and t > learning_starts and
                     num_episodes > 100 and t % checkpoint_freq == 0):
-                if saved_mean_reward is None or mean_100ep_reward > saved_mean_reward:
-                    if print_freq is not None:
-                        logger.log("Saving model due to mean reward increase: {} -> {}".format(
-                                   saved_mean_reward, mean_100ep_reward))
-                    U.save_state(model_file)
-                    model_saved = True
-                    saved_mean_reward = mean_100ep_reward
+                if evaluate:
+                    if saved_mean_reward is None or eval_score > saved_mean_reward:
+                        if print_freq is not None:
+                            logger.log("Saving model due to mean reward increase: {} -> {}".format(
+                                       saved_mean_reward, eval_score))
+                        U.save_state(model_file)
+                        model_saved = True
+                        saved_mean_reward =eval_score
+                else:
+                    if saved_mean_reward is None or mean_100ep_reward > saved_mean_reward:
+                        if print_freq is not None:
+                            logger.log("Saving model due to mean reward increase: {} -> {}".format(
+                                       saved_mean_reward, mean_100ep_reward))
+                        U.save_state(model_file)
+                        model_saved = True
+                        saved_mean_reward = mean_100ep_reward
         if model_saved:
             if print_freq is not None:
                 logger.log("Restored model with mean reward: {}".format(saved_mean_reward))
