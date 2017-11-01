@@ -319,6 +319,7 @@ def learn(env,
                 eval_score = evaluate(env, act)
 
             mean_100ep_reward = round(np.mean(episode_rewards[-101:-1]), 4)
+            std_100ep_reward = round(np.std(episode_rewards[-101:-1]), 4)
             num_episodes = len(episode_rewards)
             # if done and print_freq is not None and len(episode_rewards) % print_freq == 0:
             if t > learning_starts and t % print_freq == 0:
@@ -327,6 +328,7 @@ def learn(env,
                 logger.record_tabular("steps", t)
                 logger.record_tabular("episodes", num_episodes)
                 logger.record_tabular("mean 100 episode reward", mean_100ep_reward)
+                logger.record_tabular("std 100 episode reward", std_100ep_reward)
                 logger.record_tabular("% time spent exploring", int(100 * exploration.value(t)))
                 if t > learning_starts:
                     logger.record_tabular("Loss", weighted_error)
@@ -335,6 +337,7 @@ def learn(env,
             if (checkpoint_freq is not None and t > learning_starts and
                     num_episodes > 100 and t % checkpoint_freq == 0):
                 if evaluate:
+                    # pdb.set_trace()
                     if saved_mean_reward is None or eval_score > saved_mean_reward:
                         if print_freq is not None:
                             logger.log("Saving model due to mean reward increase: {} -> {}".format(
