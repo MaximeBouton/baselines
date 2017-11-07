@@ -258,6 +258,9 @@ def learn(env,
     eval_score = 0.0
     obs = env.reset()
     reset = True
+    eval_file = "/home/boutonm/policy-correction/dqn/eval/"
+    eval_log_freq = 20000
+    eval_point = 0
     with tempfile.TemporaryDirectory() as td:
         model_saved = False
         model_file = os.path.join(td, "model")
@@ -314,6 +317,10 @@ def learn(env,
                 # Update target network periodically.
                 update_target()
 
+            if t % eval_log_freq == 0:
+                eval_point += 1
+                eval_model = os.path.join(eval_file, "model" + str(eval_point))
+                U.save_state(eval_model)
 
             if evaluate and len(episode_rewards) % eval_freq == 0:
                 eval_score = evaluate(env, act)
